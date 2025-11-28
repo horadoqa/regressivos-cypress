@@ -54,12 +54,10 @@ jobs:
           path: cypress/reports/allure-results
 
       - name: Install Allure
-        run: npm install -g allure-commandline
+        run: npx allure --version
 
       - name: Generate Allure HTML report
-        run: |
-          allure generate cypress/reports/allure-results --clean
-          ls -R allure-report || true
+        run: npx allure generate allure-results --clean -o allure-report
 
       - name: Upload Allure HTML report
         uses: actions/upload-artifact@v4
