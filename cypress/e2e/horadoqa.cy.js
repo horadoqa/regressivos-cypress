@@ -2,7 +2,7 @@
 
 describe('Home do Hora do QA', () => {
   beforeEach(() => {
-    cy.visit('https://horadoqa.com.br')
+    cy.visit('https://www.horadoqa.com.br')
   })
 
   it('Deve carregar a página inicial', () => {
