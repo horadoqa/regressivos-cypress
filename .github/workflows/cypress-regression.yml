@@ -32,6 +32,9 @@ jobs:
 
       - name: Start app
         run: npm start &
+      
+      - name: Debug - list running processes
+        run: ps aux
 
       - name: Wait for app
         run: npx wait-on http://localhost:3000
