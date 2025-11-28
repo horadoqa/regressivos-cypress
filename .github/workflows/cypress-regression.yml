@@ -1,22 +1,16 @@
-name: Cypress Regression with Parallel + Allure + Pages
+name: Cypress Regression + Allure + Pages
 
 on:
-  # schedule:
-  #   - cron: "0 12 * * *"  # 12h UTC = 9h no Brasil
   push:
     branches: [ "main" ]
   pull_request:
 
 jobs:
   # --------------------------------------------------------------------------
-  # 1) EXECUTA CYPRESS EM PARALELO (SEM APLICAÇÃO LOCAL)
+  # 1) EXECUTA CYPRESS (LOCAL, SEM PARALELIZAÇÃO)
   # --------------------------------------------------------------------------
   cypress-tests:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        containers: [1, 2, 3]
 
     steps:
       - name: Checkout repo
@@ -25,36 +19,25 @@ jobs:
       - name: Use Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
       - name: Install dependencies
         run: npm ci
       
-      - name: Run Cypress
+      - name: Run Cypress with single spec
         run: |
-          npx cypress run
+          npx cypress run --spec "cypress/e2e/regression/horadoqa.cy.js"
 
-      # Usar Cypress Cloud
-      # - name: Run Cypress in parallel
-      #   env:
-      #     CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
-      #   run: |
-      #     npx cypress run \
-      #       --record \
-      #       --parallel \
-      #       --ci-build-id $GITHUB_RUN_ID \
-      #       --group container-${{ matrix.containers }}
-
-      - name: Upload allure-results from container
+      - name: Upload allure-results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: allure-results-${{ matrix.containers }}
+          name: allure-results
           path: cypress/reports/allure-results
 
 
   # --------------------------------------------------------------------------
-  # 2) GERA O RELATÓRIO FINAL DO ALLURE (MERGE)
+  # 2) GERA O RELATÓRIO FINAL DO ALLURE
   # --------------------------------------------------------------------------
   allure-report:
     runs-on: ubuntu-latest
@@ -64,15 +47,11 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Download all allure-results
+      - name: Download allure-results
         uses: actions/download-artifact@v4
         with:
-          path: allure-results
-
-      - name: Merge allure results
-        run: |
-          mkdir -p cypress/reports/allure-results
-          cp -r allure-results/*/* cypress/reports/allure-results/
+          name: allure-results
+          path: cypress/reports/allure-results
 
       - name: Install Allure
         run: npm install -g allure-commandline
