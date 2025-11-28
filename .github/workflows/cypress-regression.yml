@@ -1,0 +1,132 @@
+name: Cypress Regression with Parallel + Allure + Pages
+
+on:
+  # schedule:
+  #   - cron: "0 12 * * *"  # 12h UTC = 9h no Brasil
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  # --------------------------------------------------------------------------
+  # 1) EXECUTA CYPRESS EM PARALELO
+  # --------------------------------------------------------------------------
+  cypress-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        containers: [1, 2, 3]
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start app
+        run: npm start &
+
+      - name: Wait for app
+        run: npx wait-on http://localhost:3000
+
+      - name: Run Cypress in parallel
+        env:
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+        run: |
+          npx cypress run \
+            --record \
+            --parallel \
+            --ci-build-id $GITHUB_RUN_ID \
+            --group container-${{ matrix.containers }}
+
+      - name: Upload allure-results from container
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-${{ matrix.containers }}
+          path: cypress/reports/allure-results
+
+
+  # --------------------------------------------------------------------------
+  # 2) GERA O RELATÓRIO FINAL DO ALLURE (MERGE DE TODOS OS RESULTS)
+  # --------------------------------------------------------------------------
+  allure-report:
+    runs-on: ubuntu-latest
+    needs: cypress-tests
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download all allure-results
+        uses: actions/download-artifact@v4
+        with:
+          path: allure-results
+
+      - name: Merge allure results
+        run: |
+          mkdir -p cypress/reports/allure-results
+          cp -r allure-results/*/* cypress/reports/allure-results/
+
+      - name: Install Allure
+        run: npm install -g allure-commandline
+
+      - name: Generate Allure HTML report
+        run: |
+          allure generate cypress/reports/allure-results --clean
+          ls -R allure-report || true
+
+      - name: Upload Allure HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-html-report
+          path: allure-report
+
+
+  # --------------------------------------------------------------------------
+  # 3) PUBLICA O ALLURE HTML NO GITHUB PAGES
+  # --------------------------------------------------------------------------
+  publish-pages:
+    runs-on: ubuntu-latest
+    needs: allure-report
+    permissions:
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Download Allure HTML final
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-html-report
+          path: ./public
+
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./public
+
+
+  # --------------------------------------------------------------------------
+  # 4) DEPLOY FINAL
+  # --------------------------------------------------------------------------
+  deploy-pages:
+    needs: publish-pages
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
