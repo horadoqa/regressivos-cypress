@@ -29,20 +29,21 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      # ❌ removido Start app (não existe)
-      # ❌ removido debug
-      # ❌ removido wait-on
-
-      - name: Run Cypress in parallel
-        env:
-          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+      
+      - name: Run Cypress
         run: |
-          npx cypress run \
-            --record \
-            --parallel \
-            --ci-build-id $GITHUB_RUN_ID \
-            --group container-${{ matrix.containers }}
+          npx cypress run
+
+      # Usar Cypress Cloud
+      # - name: Run Cypress in parallel
+      #   env:
+      #     CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+      #   run: |
+      #     npx cypress run \
+      #       --record \
+      #       --parallel \
+      #       --ci-build-id $GITHUB_RUN_ID \
+      #       --group container-${{ matrix.containers }}
 
       - name: Upload allure-results from container
         if: always()
